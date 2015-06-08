@@ -1,0 +1,107 @@
+import logging
+logging.basicConfig(format='%(asctime)s %(message)s', filename='/home/pi/scripts/reddit/f_for_respect.log',level=logging.INFO)
+import praw
+import logging
+import os.path
+import traceback
+from time import sleep
+
+__version__ = '0.1'
+
+class Replier:
+    def __init__(self,
+                 parser,
+                 user_name='F_FOR_RESPECT',
+                 user_pass='6W3JLk4ziFy2',
+                 subreddits='pcmasterrace+pythonforengineers+gaming+BlackPeopleTwitter',
+                 user_agent='F FOR RESPECT by /u/osiris_S134'.format(__version__),
+                 limit=1000,
+                 debug=False):
+        logging.info('Setting things up...')
+        self.parser = parser
+        self.user_agent = user_agent
+        self.subreddits = subreddits
+        self.user_name = user_name
+        self.user_pass = user_pass
+        self.limit = limit
+        self.debug = debug
+        self.r = praw.Reddit(self.user_agent)
+        self.blacklist = self._setup_blacklist('BLACKLIST.txt')
+        self.rest_time = 3
+        self.comments_replied_to = 0
+
+    def start(self):
+        print("Logging into Reddit...")
+	logging.info('Logging into Reddit...')
+        self._login()
+        print("Starting the comments stream...")
+	logging.info("Starting the comments stream...")
+        comments = praw.helpers.comment_stream(self.r, self.subreddits, self.limit)
+        return self._main_loop(comments)
+
+    def _login(self):
+        self.r.login(self.user_name, self.user_pass)
+
+    def _main_loop(self, comments):
+        while True:
+            try:
+                self._search_comments(comments)
+            except Exception as e:
+                self._handle_exception(e)
+        
+    def _should_reply(self, comment):
+#print comment username
+ #       print 'Author is %s' %(comment.author.name.lower())
+        if comment.author.name.lower() in self.blacklist:
+           return False
+	if comment.author.name=='F_FOR_RESPECT':
+	    return False
+        replies = [x.author.name.lower() for x in comment.replies]
+        if self.user_name.lower() in replies:
+            return False
+        return True
+
+
+    def _search_comments(self, comments):
+        for comment in comments:
+# print all the comments
+#	    print comment
+            should_reply, text = self.parser.parse(comment)
+#print what the text string should be
+#	    print 'text is %s' % text
+            if should_reply is True and text:
+#test to print variables
+#	            print 'should_reply is %s ' % (should_reply)
+#had to disable the if statement, not sure what it does?
+		    if self._should_reply(comment):
+#			    print 'got to nested if statement'
+	              	    self._make_comment(comment, text)
+       		      	    self.comments_replied_to += 1
+#		    print 'response printed'
+
+    def _make_comment(self, comment, text):
+        if self.debug:
+            print(text)
+        else:
+            comment.reply(text)
+        print("Replied to {}'s comment at {}".format(comment.author.name, comment.permalink))
+	logging.info("Replied to {}'s comment at {}".format(comment.author.name, comment.permalink))
+
+    def _setup_blacklist(self, f):
+        basepath = os.path.dirname(__file__)
+        filepath = os.path.abspath(os.path.join(basepath, f))
+        try:
+            f = open(filepath)
+            blacklist = [x.lower() for x in f.read().splitlines()]
+            f.close()
+        except (OSError, IOError) as e:
+            blacklist = []
+        blacklist.append(self.user_name.lower())
+        return blacklist
+
+    def _handle_exception(self, e):
+        traceback.print_exc()
+        logging.warning("Something bad happened! I'm going to try to keep going, though. Error: {}".format(e))
+        sleep(self.rest_time)
+        self.start()
+        exit()
