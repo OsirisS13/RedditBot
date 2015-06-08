@@ -11,10 +11,10 @@ __version__ = '0.1'
 class Replier:
     def __init__(self,
                  parser,
-                 user_name='F_FOR_RESPECT',
-                 user_pass='6W3JLk4ziFy2',
+                 user_name='',
+                 user_pass='',
                  subreddits='pcmasterrace+pythonforengineers+gaming+BlackPeopleTwitter',
-                 user_agent='F FOR RESPECT by /u/osiris_S134'.format(__version__),
+                 user_agent=''.format(__version__),
                  limit=1000,
                  debug=False):
         logging.info('Setting things up...')
